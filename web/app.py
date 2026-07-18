@@ -16,8 +16,13 @@ static_dir = Path(__file__).parent / "static"
 templates_dir = Path(__file__).parent / "templates"
 static_dir.mkdir(exist_ok=True)
 templates_dir.mkdir(exist_ok=True)
-
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Render"""
+    return {"status": "ok"}
+
 templates = Jinja2Templates(directory=str(templates_dir))
 
 # Глобальные данные (будут установлены из bot.py)
