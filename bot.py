@@ -2712,13 +2712,12 @@ def main():
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
     if RENDER_URL:
         # Webhook mode for Render
-        webhook_url = f"{WEB_HOST}:{WEB_PORT}"
         print(f"🔗 Webhook URL: {RENDER_URL}")
         app.run_webhook(
             listen="0.0.0.0",
             port=WEB_PORT,
-            url_path=TELEGRAM_TOKEN,
-            webhook_url=f"{RENDER_URL}/{TELEGRAM_TOKEN}"
+            url_path="webhook",
+            webhook_url=f"{RENDER_URL}/webhook"
         )
     else:
         # Polling mode for local
