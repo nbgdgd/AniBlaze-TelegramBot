@@ -2708,20 +2708,12 @@ def main():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
     
-    # Определяем: Render (webhook) или локально (polling)
+    # Определяем: Render или локально
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
     if RENDER_URL:
-        # Webhook mode for Render
-        print(f"🔗 Webhook URL: {RENDER_URL}")
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=WEB_PORT,
-            url_path="webhook",
-            webhook_url=f"{RENDER_URL}/webhook"
-        )
-    else:
-        # Polling mode for local
-        app.run_polling()
+        print(f"🔗 Render URL: {RENDER_URL}")
+    
+    app.run_polling()
 
 if __name__ == "__main__":
     main()

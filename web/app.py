@@ -23,17 +23,6 @@ async def health_check():
     """Health check endpoint for Render"""
     return {"status": "ok"}
 
-@app.post("/webhook")
-async def webhook(request: Request):
-    """Telegram webhook endpoint"""
-    from telegram import Update
-    from bot import app as bot_app
-    
-    data = await request.json()
-    update = Update.de_json(data, bot_app.bot)
-    await bot_app.process_update(update)
-    return {"status": "ok"}
-
 templates = Jinja2Templates(directory=str(templates_dir))
 
 # Глобальные данные (будут установлены из bot.py)
