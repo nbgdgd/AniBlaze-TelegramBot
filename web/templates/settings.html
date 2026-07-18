@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - Bot Admin{% endblock %}
+
+{% block content %}
+<h1>⚙️ Настройки</h1>
+
+<div class="card">
+    <h2>🧠 Модули</h2>
+    
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #0f3460;">
+        <div>
+            <strong>Терапия</strong>
+            <p style="color: #a0a0a0; font-size: 0.9rem;">Бот-психолог который лечит матами</p>
+        </div>
+        <form method="post" action="/settings/therapy/toggle">
+            <button type="submit" class="btn">
+                {% if therapy_enabled %}Выключить{% else %}Включить{% endif %}
+            </button>
+        </form>
+    </div>
+    
+    <div style="padding: 15px 0; border-bottom: 1px solid #0f3460;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <strong>Целевой пользователь</strong>
+                <p style="color: #a0a0a0; font-size: 0.9rem;">Бот отвечает на ВСЕ сообщения этого пользователя</p>
+            </div>
+            <form method="post" action="/settings/target/toggle">
+                <button type="submit" class="btn">
+                    {% if target_enabled %}Выключить{% else %}Включить{% endif %}
+                </button>
+            </form>
+        </div>
+        <div style="padding-top: 10px;">
+            <strong>Статус:</strong>
+            {% if target_enabled %}
+            <span style="color: #4ade80;">✅ Включён (ID: 5631862253)</span>
+            {% else %}
+            <span style="color: #f87171;">❌ Выключен</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div style="padding: 15px 0;">
+        <strong>Статус терапии:</strong>
+        {% if therapy_enabled %}
+        <span style="color: #4ade80;">✅ Включена</span>
+        {% else %}
+        <span style="color: #f87171;">❌ Выключена</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>📝 Команды</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Команда</th>
+                <th>Описание</th>
+                <th>Доступ</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>/therapy @ник</code></td>
+                <td>Начать сессию терапии</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/therapy stop</code></td>
+                <td>Завершить сессию терапии</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/therapy status</code></td>
+                <td>Статус текущей сессии</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/lie @ник</code></td>
+                <td>Анализ паттернов вранья</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/spy @ник</code></td>
+                <td>Поиск секретов в сообщениях</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/fool</code></td>
+                <td>Текущий дурак дня</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/help</code></td>
+                <td>Список всех команд</td>
+                <td>Все</td>
+            </tr>
+            <tr>
+                <td><code>/target</code></td>
+                <td>Вкл/выкл целевого пользователя</td>
+                <td><span style="color: #f472b6;">@Nooxas</span></td>
+            </tr>
+            <tr>
+                <td><code>/critnow</code></td>
+                <td>Немедленная критика</td>
+                <td>Админы</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

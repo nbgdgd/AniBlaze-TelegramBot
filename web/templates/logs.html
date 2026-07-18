@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Логи - Bot Admin{% endblock %}
+
+{% block content %}
+<h1>📝 Логи ({{ total }} всего)</h1>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Время</th>
+                <th>Чат</th>
+                <th>Пользователь</th>
+                <th>Сообщение</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for msg in logs %}
+            <tr>
+                <td>{{ msg[3] | int | string }}</td>
+                <td>{{ msg[0] }}</td>
+                <td>{{ msg[1] }}</td>
+                <td>{{ msg[2][:100] }}{% if msg[2]|length > 100 %}...{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="/logs?page={{ page - 1 }}">← Назад</a>
+    {% endif %}
+    
+    {% for p in range(1, total_pages + 1) %}
+    {% if p == page %}
+    <a href="/logs?page={{ p }}" class="active">{{ p }}</a>
+    {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+    <a href="/logs?page={{ p }}">{{ p }}</a>
+    {% elif p == 4 or p == total_pages - 3 %}
+    <span style="color: #a0a0a0;">...</span>
+    {% endif %}
+    {% endfor %}
+    
+    {% if page < total_pages %}
+    <a href="/logs?page={{ page + 1 }}">Вперёд →</a>
+    {% endif %}
+</div>
+{% endblock %}

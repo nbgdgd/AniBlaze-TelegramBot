@@ -1,0 +1,28 @@
+/* Additional styles */
+.log-message {
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reputation-positive {
+    color: #4ade80;
+}
+
+.reputation-negative {
+    color: #f87171;
+}
+
+.reputation-neutral {
+    color: #fbbf24;
+}
+
+.achievement-badge {
+    display: inline-block;
+    background: #0f3460;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 5px;
+    font-size: 0.8rem;
+}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд - Bot Admin{% endblock %}
+
+{% block content %}
+<h1>📊 Дашборд</h1>
+
+<div class="stat-grid">
+    <div class="stat-item">
+        <div class="stat-value">{{ messages_today }}</div>
+        <div class="stat-label">Сообщений сегодня</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">{{ bot_messages_today }}</div>
+        <div class="stat-label">Ответов бота</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">{{ criticisms_today }}</div>
+        <div class="stat-label">Критик</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">{{ total_users }}</div>
+        <div class="stat-label">Пользователей</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🏆 Топ пользователей за сегодня</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Пользователь</th>
+                <th>Сообщений</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user, count in top_users %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ user }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>🎯 Дурак дня</h2>
+    {% if current_fool %}
+    <p><strong>{{ current_fool.username }}</strong> - {{ current_fool.count }} сообщений</p>
+    <p style="color: #a0a0a0;">{{ current_fool.date }}</p>
+    {% else %}
+    <p style="color: #a0a0a0;">Ещё не объявлен</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>⚙️ Модули</h2>
+    <p>Терапия: <strong>{% if therapy_enabled %}✅ Включена{% else %}❌ Выключена{% endif %}</strong></p>
+</div>
+{% endblock %}

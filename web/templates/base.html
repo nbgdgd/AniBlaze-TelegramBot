@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Telegram Bot Admin{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: #16213e;
+            padding: 20px;
+            border-right: 1px solid #0f3460;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #e94560;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .nav a {
+            display: block;
+            color: #a0a0a0;
+            text-decoration: none;
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .nav a:hover, .nav a.active {
+            background: #0f3460;
+            color: #fff;
+        }
+        
+        .main {
+            margin-left: 250px;
+            padding: 30px;
+        }
+        
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #0f3460;
+        }
+        
+        .card h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-item {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e94560;
+        }
+        
+        .stat-label {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        th {
+            background: #1a1a2e;
+            color: #e94560;
+        }
+        
+        tr:hover {
+            background: #1a1a2e;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #c73650;
+        }
+        
+        .btn-secondary {
+            background: #0f3460;
+        }
+        
+        .btn-secondary:hover {
+            background: #16213e;
+        }
+        
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #0f3460;
+            transition: .4s;
+            border-radius: 30px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background: #eee;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background: #e94560;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a0a0a0;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+        }
+        
+        .pagination {
+            display: flex;
+            gap: 5px;
+            margin-top: 20px;
+        }
+        
+        .pagination a {
+            padding: 8px 12px;
+            background: #0f3460;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        
+        .pagination a.active {
+            background: #e94560;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .alert-success {
+            background: #1e3a2f;
+            border: 1px solid #2d5a47;
+            color: #4ade80;
+        }
+        
+        .alert-error {
+            background: #3a1e1e;
+            border: 1px solid #5a2d2d;
+            color: #f87171;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">🤖 Bot Admin</div>
+        <nav class="nav">
+            <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">📊 Дашборд</a>
+            <a href="/users" class="{% if request.url.path == '/users' %}active{% endif %}">👥 Пользователи</a>
+            <a href="/stats" class="{% if request.url.path == '/stats' %}active{% endif %}">📈 Статистика</a>
+            <a href="/settings" class="{% if request.url.path == '/settings' %}active{% endif %}">⚙️ Настройки</a>
+            <a href="/logs" class="{% if request.url.path == '/logs' %}active{% endif %}">📝 Логи</a>
+            <a href="/logout">🚪 Выйти</a>
+        </nav>
+    </div>
+    
+    <div class="main">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

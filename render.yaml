@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: telegram-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: WEB_ADMIN_PASSWORD
+        value: admin123
+      - key: PYTHON_VERSION
+        value: 3.11.0

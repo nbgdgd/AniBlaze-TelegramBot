@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика - Bot Admin{% endblock %}
+
+{% block content %}
+<h1>📈 Статистика</h1>
+
+<div class="stat-grid">
+    <div class="stat-item">
+        <div class="stat-value">{{ total_messages }}</div>
+        <div class="stat-label">Всего сообщений</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">{{ total_bot_messages }}</div>
+        <div class="stat-label">Всего ответов бота</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">{{ total_criticism }}</div>
+        <div class="stat-label">Всего критики</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📊 Активность за неделю</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>День</th>
+                <th>Сообщений</th>
+                <th>Ответов бота</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for day in daily_stats %}
+            <tr>
+                <td>{{ day.day }}</td>
+                <td>{{ day.messages }}</td>
+                <td>{{ day.bot_messages }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
