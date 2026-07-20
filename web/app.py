@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import logging
 import asyncio
@@ -13,13 +14,18 @@ logger = logging.getLogger(__name__)
 
 KEEP_ALIVE_INTERVAL = 300  # 5 минут
 
+def _get_keep_alive_url() -> str:
+    port = os.getenv("PORT", "8080")
+    return f"http://localhost:{port}/health"
+
 async def keep_alive_loop():
+    url = _get_keep_alive_url()
     while True:
         await asyncio.sleep(KEEP_ALIVE_INTERVAL)
         try:
             import httpx
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get("http://localhost:8080/health")
+                r = await c.get(url)
                 logger.info(f"Keep-alive ping: {r.status_code}")
         except Exception as e:
             logger.warning(f"Keep-alive ping failed: {e}")
