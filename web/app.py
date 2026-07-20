@@ -50,7 +50,11 @@ async def health_check():
     """Health check endpoint for Render"""
     return {"status": "ok"}
 
-templates = Jinja2Templates(directory=str(templates_dir), cache_size=0)
+templates = Jinja2Templates(directory=str(templates_dir))
+try:
+    templates.env.cache_size = 0  # совместимость с Jinja2 3.1.6 + Python 3.14
+except Exception:
+    pass
 
 # Глобальные данные (будут установлены из bot.py)
 BOT_DATA = {

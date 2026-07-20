@@ -196,6 +196,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === Команда /battle — битва Эрис vs клон пользователя ===
 async def cmd_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global BATTLE_MANAGER
     try:
         chat = update.effective_chat
         user = update.effective_user
@@ -258,7 +259,6 @@ async def cmd_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"⚔️ Создаю клон {target} на основе {len(examples)} сообщений...")
 
         # Запускаем битву
-        global BATTLE_MANAGER
         BATTLE_MANAGER = BattleManager(ERIS_CORE, context.bot)
         await BATTLE_MANAGER.start_battle(
             chat_id=chat_id,
