@@ -25,6 +25,8 @@ from commands.lie_detector import LieDetector
 from commands.spy import SpyCommand
 from commands.eris_mode import ErisMode
 from eris_bot_core import ErisCore, PLAY_SECTION
+from services.clone_prompts import build_clone_prompt
+from services.battle_manager import BattleManager
 from web.app import set_bot_data, start_web_server
 
 # Логирование
@@ -82,6 +84,7 @@ GLOBAL_SERVICES = {}
 
 # Единый модуль Эрис (инициализируется сразу)
 ERIS_CORE = ErisCore()
+BATTLE_MANAGER = None  # инициализируется в main() после app.bot
 
 # Тогл целевого пользователя (включается/выключается командой /target)
 TARGET_USER_ENABLED = False
@@ -178,7 +181,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/fool — дурак дня\n"
             "/therapy @ник — терапия\n"
             "/lie @ник — детектор вранья\n"
-            "/spy @ник — поиск секретов\n\n"
+            "/spy @ник — поиск секретов\n"
+            "/battle @ник — битва Эрис vs клон пользователя\n\n"
             "🔒 <b>Только для @Nooxas:</b>\n"
             "/target — вкл/выкл целевого пользователя\n\n"
             "⚡ <b>Только для админов:</b>\n"
@@ -189,6 +193,86 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
     except Exception as e:
         logging.error(f"Ошибка в /help: {e}")
+
+# === Команда /battle — битва Эрис vs клон пользователя ===
+async def cmd_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        chat = update.effective_chat
+        user = update.effective_user
+        chat_id = chat.id if chat else None
+        username = f"@{user.username}" if user and user.username else (user.full_name if user else "")
+        if not chat_id:
+            return
+
+        if BATTLE_MANAGER and BATTLE_MANAGER.active:
+            await context.bot.send_message(chat_id=chat_id, text="⚔️ Битва уже идёт! Дождись окончания.")
+            return
+
+        text = update.message.text.strip()
+        parts = text.split(maxsplit=1)
+        if len(parts) < 2:
+            await context.bot.send_message(chat_id=chat_id,
+                text="⚔️ Использование: /battle @ник [тема]\n"
+                     "Пример: /battle @Son4ta_inc Ну что, выходи, потолкуем за твои теории")
+            return
+
+        args = parts[1].strip()
+        # Извлекаем @ник
+        target = ""
+        starter_msg = ""
+        if args.startswith("@"):
+            space_idx = args.find(" ")
+            if space_idx == -1:
+                target = args
+            else:
+                target = args[:space_idx]
+                starter_msg = args[space_idx:].strip()
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="❌ Укажи @ник пользователя для клонирования")
+            return
+
+        if target == username:
+            await context.bot.send_message(chat_id=chat_id, text="😂 Нельзя клонировать самого себя!")
+            return
+
+        # Собираем примеры сообщений target из лога
+        indices = user_messages_by_username.get(target, [])
+        if not indices:
+            await context.bot.send_message(chat_id=chat_id, text=f"❌ Нет сообщений от {target} в логе")
+            return
+
+        examples = []
+        for idx in indices[-60:]:
+            if idx < len(user_messages_log):
+                examples.append(user_messages_log[idx][2])
+
+        if len(examples) < 10:
+            await context.bot.send_message(chat_id=chat_id,
+                text=f"❌ Слишком мало сообщений от {target} ({len(examples)}). Нужно хотя бы 10.")
+            return
+
+        # Строим промпт клон-бота
+        clone_prompt = build_clone_prompt(target, examples)
+
+        await context.bot.send_message(chat_id=chat_id,
+            text=f"⚔️ Создаю клон {target} на основе {len(examples)} сообщений...")
+
+        # Запускаем битву
+        global BATTLE_MANAGER
+        BATTLE_MANAGER = BattleManager(ERIS_CORE, context.bot)
+        await BATTLE_MANAGER.start_battle(
+            chat_id=chat_id,
+            clone_prompt=clone_prompt,
+            clone_username=target,
+            starter_msg=starter_msg,
+            max_turns=10,
+            started_by=username,
+        )
+
+    except Exception as e:
+        logging.error(f"Ошибка в /battle: {e}", exc_info=True)
+        if update.effective_chat:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Ошибка при запуске битвы")
 
 # Индексы для быстрого поиска
 user_messages_by_chat = {}  # {chat_id: [indices]}
@@ -2569,6 +2653,7 @@ def main():
     app.add_handler(CommandHandler("fool", cmd_fool_of_the_day))
     app.add_handler(CommandHandler("target", cmd_target))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("battle", cmd_battle))
     
     # Обычные сообщения и фото — после команд
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
