@@ -247,11 +247,6 @@ async def cmd_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if idx < len(user_messages_log):
                 examples.append(user_messages_log[idx][2])
 
-        if len(examples) < 10:
-            await context.bot.send_message(chat_id=chat_id,
-                text=f"❌ Слишком мало сообщений от {target} ({len(examples)}). Нужно хотя бы 10.")
-            return
-
         # Строим промпт клон-бота
         clone_prompt = build_clone_prompt(target, examples)
 
