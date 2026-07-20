@@ -21,7 +21,6 @@ client = OpenAI(
 )
 
 FALLBACK_MODELS = [
-    "tencent/hy3",
     "google/gemma-4-26b-a4b-it:free",
     "deepseek/deepseek-v4-flash",
 ]
