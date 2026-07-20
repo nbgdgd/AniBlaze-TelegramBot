@@ -1566,6 +1566,8 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
     system_prompt = ERIS_CORE.build_system_prompt(
         toxicity_level=toxicity_level,
         recent_insults=recent_insults_str,
+        is_talking_to_partner=is_eris,
+        is_rude_to_partner=is_eris and is_rude,
         length_instruction=li,
         memory_section=memory_section,
         personality_section=personality_section,
