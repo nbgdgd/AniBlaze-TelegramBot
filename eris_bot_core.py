@@ -21,8 +21,8 @@ client = OpenAI(
 )
 
 FALLBACK_MODELS = [
-    "deepseek/deepseek-v4-flash",
     "google/gemma-4-26b-a4b-it:free",
+    "deepseek/deepseek-v4-flash",
 ]
 
 EXTRA_HEADERS = {
