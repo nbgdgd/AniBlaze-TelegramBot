@@ -24,7 +24,7 @@ from commands.therapy import TherapyCommand
 from commands.lie_detector import LieDetector
 from commands.spy import SpyCommand
 from commands.eris_mode import ErisMode
-from eris_bot_core import ErisCore
+from eris_bot_core import ErisCore, PLAY_SECTION
 from web.app import set_bot_data, start_web_server
 
 # Логирование
@@ -1503,7 +1503,7 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
     print(f"🎯 УРОВЕНЬ ТОКСИЧНОСТИ: {toxicity_level}/5")
 
     # Формируем секции для единого промпта
-    recent_insults_str = ", ".join(ERIS_CORE.recent_insults) if ERIS_CORE.recent_insults else "(пока пусто)"
+    recent_bot_replies_block = ERIS_CORE.get_recent_replies_block()
 
     # Инструкция по длине
     li = length_instructions.get(response_type, length_instructions["medium"])
@@ -1562,10 +1562,16 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
             base = base[:217] + "..."
         replied_context_section = f"\n\nЭто ответ на сообщение {replied_user_disp}: '{base}'."
 
+    # Режим подыгрывания (для абсурдных тем)
+    play_section = ""
+    if toxicity_level >= 3:
+        play_section = PLAY_SECTION
+
     # Собираем единый system prompt
     system_prompt = ERIS_CORE.build_system_prompt(
         toxicity_level=toxicity_level,
-        recent_insults=recent_insults_str,
+        recent_insults="",
+        recent_bot_replies=recent_bot_replies_block,
         is_talking_to_partner=is_eris,
         is_rude_to_partner=is_eris and is_rude,
         length_instruction=li,
@@ -1575,6 +1581,7 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
         search_section=search_section,
         log_context_section=log_context_section,
         replied_context_section=replied_context_section,
+        play_section=play_section,
     )
 
     # Добавляем guardrails (кроме спец. пользователей)
@@ -1790,6 +1797,7 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
         
         # Извлекаем и запоминаем использованные оскорбления для анти-повтора
         ERIS_CORE.extract_insults(answer)
+        ERIS_CORE.add_reply(answer)
         
         # Убираем автоматические добавления (если есть)
         auto_prefixes_to_remove = ["Еб*ный, ", "Ебан*й, ", "Ебаный, "]
@@ -1806,7 +1814,7 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
         
         print(f"   ОТВЕТ: {answer[:80]}...")
         print(f"📚 ИСТОРИЯ РАЗГОВОРА: {len(conversations[chat_id])} сообщений")
-        print(f"   🔄 АНТИ-ПОВТОР: {ERIS_CORE.recent_insults}")
+        print(f"   🔄 АНТИ-ПОВТОР: {len(ERIS_CORE.recent_bot_replies)} реплик в истории")
         
         return answer
         
