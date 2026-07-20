@@ -1,6 +1,19 @@
 import os
 from pathlib import Path
 
+# === Загружаем .env если есть (локальная разработка) ===
+_env_file = Path(__file__).parent / ".env"
+if _env_file.exists():
+    with open(_env_file, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip().strip("\"'")
+            if not os.environ.get(key):
+                os.environ[key] = val
+
 # === Пути ===
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"

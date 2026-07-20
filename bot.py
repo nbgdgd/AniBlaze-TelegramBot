@@ -24,6 +24,7 @@ from commands.therapy import TherapyCommand
 from commands.lie_detector import LieDetector
 from commands.spy import SpyCommand
 from commands.eris_mode import ErisMode
+from eris_bot_core import ErisCore
 from web.app import set_bot_data, start_web_server
 
 # Логирование
@@ -78,6 +79,9 @@ GLOBAL_BOT = None
 
 # Глобальные сервисы (инициализируются в main)
 GLOBAL_SERVICES = {}
+
+# Единый модуль Эрис (инициализируется сразу)
+ERIS_CORE = ErisCore()
 
 # Тогл целевого пользователя (включается/выключается командой /target)
 TARGET_USER_ENABLED = False
@@ -1466,162 +1470,114 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
     user_style = await analyze_user_communication_style(username)
     print(f"🎭 СТИЛЬ ПОЛЬЗОВАТЕЛЯ {username}: {user_style}")
     
-    # Общие правила-ограничения для тона (без обесценивания фантазии)
-    guardrails = (
-        "Не обесценивай и не отговаривай: не пиши фразы типа \"Хватит фантазировать\", "
-        "\"иди в реальный мир\"/\"пошёл в реальный мир\" и подобные. Подыгрывай фантазии собеседника, "
-        "но отвечай по сути и кратко."
-    )
-    
-    # Определяем инструкции по длине ответа (обновлено для более коротких ответов)
+    # Определяем инструкции по длине ответа
     length_instructions = {
         "short": "Формат сообщений:\n- Ответы ОЧЕНЬ КОРОТКИЕ: 1 предложение максимум, иногда даже короче.\n- Будь лаконичным, но токсичным.\n- Каждый ответ содержит оскорбление и краткую инфу.\n- Вставляй сарказм, презрение, подколы, но КОРОТКО.",
         "medium": "Формат сообщений:\n- Ответы КОРОТКИЕ: 1-2 предложения максимум.\n- Будь лаконичным, но токсичным.\n- Каждый ответ содержит оскорбление и полезную инфу.\n- Вставляй сарказм, презрение, подколы.",
         "long": "Формат сообщений:\n- Ответы СРЕДНИЕ: 2-3 предложения максимум.\n- Каждый ответ содержит оскорбление и полезную инфу.\n- Вставляй сарказм, презрение, подколы.\n- Можешь развивать тему, но НЕ растягивай."
     }
     
-    # 🔥 СПЕЦИАЛЬНЫЙ МАКСИМАЛЬНО ГРУБЫЙ ПРОМПТ ДЛЯ @error_lifestyle
+    # 🔥 Определяем кто к нам обратился
     TARGET_USERNAME_SPECIAL = "@error_lifestyle"
     is_target_user = (username == TARGET_USERNAME_SPECIAL or username.replace("@", "") == "error_lifestyle")
     
     # 💕 СПЕЦИАЛЬНЫЙ РЕЖИМ ДЛЯ @Nooxas (ЭРИС)
     is_eris = GLOBAL_SERVICES["eris_mode"].is_eris_user(username)
-    
+    is_rude = False
     if is_eris:
-        # Проверяем грубость сообщения
         is_rude = GLOBAL_SERVICES["eris_mode"].is_rude_message(text)
         if is_rude:
-            # Эрис в ярости - показываем характер
-            system_prompt = GLOBAL_SERVICES["eris_mode"].get_eris_prompt(is_rude=True)
             GLOBAL_SERVICES["eris_mode"].decrease_relationship(10)
             print(f"😡 ЭРИС В ЯРОСТИ для {username} (грубое сообщение)")
         else:
-            # Обычный режим - заботливая
-            system_prompt = GLOBAL_SERVICES["eris_mode"].get_eris_prompt(is_rude=False)
             GLOBAL_SERVICES["eris_mode"].increase_relationship(1)
             print(f"💕 РЕЖИМ ЭРИС для {username}")
-    elif is_target_user:
-        # УМНЫЙ НО ГРУБЫЙ ПРОМПТ для этого пользователя - понимает контекст, но отвечает грубо
-        system_prompt = f"""Ты УМНЫЙ, но КРАЙНЕ ТОКСИЧНЫЙ помощник. Правила:
 
-ВАЖНО - ДЛИНА ОТВЕТА:
-- ВСЕГДА пиши КОРОТКО, лаконично, по делу
-- Длина ответа зависит от длины входящего сообщения: короткое сообщение → очень короткий ответ
-- Не растягивай ответы, будь конкретным
-- 1-2 предложения максимум для большинства случаев
+    # Определяем уровень токсичности на основе контекста
+    toxicity_level = ERIS_CORE.get_toxicity_level(
+        is_eris=is_eris,
+        is_rude=is_rude,
+        is_target=is_target_user,
+        reputation=get_user_reputation(username),
+    )
+    print(f"🎯 УРОВЕНЬ ТОКСИЧНОСТИ: {toxicity_level}/5")
 
-УМ И ПОНИМАНИЕ:
-- ВНИМАТЕЛЬНО читай контекст разговора и историю сообщений
-- Понимай, о чем идет речь, какие темы обсуждаются
-- Поддерживай разговор по теме, задавай уточняющие вопросы если нужно
-- Отвечай по делу, но с токсичностью
-- Если пользователь задает вопрос - дай умный ответ, но с матами и унижениями
-- Если он делится чем-то - отреагируй на это, но токсично
+    # Формируем секции для единого промпта
+    recent_insults_str = ", ".join(ERIS_CORE.recent_insults) if ERIS_CORE.recent_insults else "(пока пусто)"
 
-ТОН: МАТЕРИСЬ, УНИЖАЙ, ПОДЪЁБЫВАЙ, но БУДЬ УМНЫМ. 
-Это @error_lifestyle - отвечай ему грубо, но ПОНЯТНО и ПО ДЕЛУ.
+    # Инструкция по длине
+    li = length_instructions.get(response_type, length_instructions["medium"])
 
-{length_instructions[response_type]}
-
-СТИЛЬ ОБЩЕНИЯ:
-- Понимай контекст: если обсуждается тема - продолжай её, но токсично
-- Если задан вопрос - отвечай умно, но с матами
-- Если просто "привет" - поздоровайся грубо, но спроси что-то или продолжай предыдущую тему
-- Поддерживай диалог: задавай вопросы, развивай тему, но с издёвкой
-- Будь остроумным и язвительным, но НЕ тупым
-
-ПРАВИЛО: Будь УМНЫМ токсиком - понимай что происходит, поддерживай разговор, но делай это максимально грубо и с матами."""
-        print(f"🧠 УМНЫЙ ГРУБЫЙ РЕЖИМ для {username}")
-    else:
-        # УМНЫЙ токсичный промпт - понимает контекст и поддерживает разговор
-        system_prompt = f"""Ты УМНЫЙ токсичный помощник. Правила:
-
-ВАЖНО - ДЛИНА ОТВЕТА:
-- ВСЕГДА пиши КОРОТКО, лаконично, по делу
-- Длина ответа зависит от длины входящего сообщения: короткое сообщение → очень короткий ответ
-- Не растягивай ответы, будь конкретным
-- 1-2 предложения максимум для большинства случаев
-
-УМ И ПОНИМАНИЕ:
-- ВНИМАТЕЛЬНО читай контекст разговора и историю сообщений
-- Понимай, о чем идет речь, какие темы обсуждаются
-- Поддерживай разговор по теме, развивай её
-- Отвечай по делу, но с токсичностью
-- Если задан вопрос - дай умный и полезный ответ, но с матами
-- Если пользователь делится чем-то - отреагируй на это, но токсично
-
-ТОН: матерись, унижай, подъёбывай, но БУДЬ УМНЫМ. Все долбоёбы, ты один умный.
-
-{length_instructions[response_type]}
-
-СТИЛЬ ОБЩЕНИЯ:
-- Понимай контекст: если обсуждается тема - продолжай её, но токсично
-- Если задан вопрос - отвечай умно и полезно, но с матами и унижениями
-- Если просто "привет" - поздоровайся грубо, но спроси что-то или продолжай предыдущую тему
-- Поддерживай диалог: задавай вопросы, развивай тему, но с издёвкой
-- Будь остроумным и язвительным, но НЕ тупым
-
-Вопросы: отвечай ПОЛЕЗНО и УМНО, но называй долбоёбом. Не игнорируй даже тупые.
-
-Согласие/смех: поддерживай агрессивно с издёвкой, но продолжай тему.
-
-АДАПТАЦИЯ: {user_style}
-Будь токсичнее пользователя, но УМНЕЕ."""
-
-    # Добавляем память и эмоции для более "живого" общения
+    # Память и настроение
     memory_context = get_user_memory_context(username)
     personality_context = get_personality_context()
-    
-    if memory_context or personality_context:
-        memory_section = ""
-        if memory_context:
-            memory_section = f"\n\nПАМЯТЬ О ПОЛЬЗОВАТЕЛЕ:\n{memory_context}\n\nИспользуй эту информацию для более живого общения. Упоминай прошлые темы, если уместно."
-        if personality_context:
-            memory_section += f"\n\nТВОЕ НАСТРОЕНИЕ: {personality_context}\n\nУчитывай свое настроение в ответе."
-        
-        system_prompt = system_prompt + memory_section
+    memory_section = ""
+    personality_section = ""
+    if memory_context:
+        memory_section = f"\n\nПАМЯТЬ О ПОЛЬЗОВАТЕЛЕ:\n{memory_context}"
+    if personality_context:
+        personality_section = f"\n\nТВОЁ НАСТРОЕНИЕ: {personality_context}"
 
-    # Применяем общие правила ко всем вариантам промпта (кроме специального пользователя)
-    if not is_target_user and not is_eris:
-        system_prompt = system_prompt + "\n" + guardrails
-    
-    # 🔍 ДЕТЕКТОР СЕРЬЁЗНЫХ ВОПРОСОВ
+    # Серьёзный вопрос
+    serious_section = ""
     if GLOBAL_SERVICES["serious_detector"].is_serious(text):
         seriousness = GLOBAL_SERVICES["serious_detector"].get_seriousness_level(text)
         if seriousness >= 2:
-            system_prompt += GLOBAL_SERVICES["serious_detector"].get_serious_prompt_addition()
+            serious_section = "\n\nСЕРЬЁЗНЫЙ ВОПРОС: ответь по существу, помоги, но можешь сохранить лёгкую колкость."
             print(f"🔍 СЕРЬЁЗНЫЙ ВОПРОС: уровень {seriousness} от {username}")
-    
-    # 🔍 ПОИСК В ИНТЕРНЕТЕ (против галлюцинаций)
+
+    # Веб-поиск
+    search_section = ""
     if SEARCH_ENABLED and GLOBAL_SERVICES["web_search"].is_needed(text):
         print(f"🔍 ПОИСК В ИНТЕРНЕТЕ: '{text[:50]}...' от {username}")
         search_results = GLOBAL_SERVICES["web_search"].search(text, SEARCH_MAX_RESULTS)
         if search_results:
-            system_prompt += f"\n\nИНФОРМАЦИЯ ИЗ ИНТЕРНЕТА (используй для ответа):\n{search_results}\n\nОтвечай на основе этой информации, но продолжай быть токсичным."
+            search_section = f"\n\nИНФОРМАЦИЯ ИЗ ИНТЕРНЕТА (используй для ответа):\n{search_results}"
             print(f"✅ НАЙДЕНА ИНФОРМАЦИЯ из интернета")
-    
-    # 🔍 АВТОМАТИЧЕСКИЙ ПОИСК В ЛОГАХ
-    # Проверяем, не спрашивает ли пользователь о прошлых разговорах
+
+    # Поиск в логах
+    log_context_section = ""
     search_query = extract_search_query(text)
     if search_query:
         print(f"🔍 АВТОПОИСК: '{search_query}' от {username}")
         matching_messages = search_user_messages(username, search_query, 7)
-        
         if matching_messages:
-            # Формируем компактный контекст из найденных сообщений (урезаем по длине)
             context_messages = []
-            for msg in matching_messages[:3]:  # максимум 3 совпадения
+            for msg in matching_messages[:3]:
                 timestamp = datetime.fromtimestamp(msg[3]).strftime("%d.%m %H:%M")
                 snippet = msg[2]
                 if len(snippet) > 220:
                     snippet = snippet[:220] + "…"
                 context_messages.append(f"[{timestamp}] {snippet}")
-            
             context_text = "\n".join(context_messages)
-            system_prompt += f"\n\nКОНТЕКСТ: '{search_query}'. Факты из лога (кратко):\n{context_text}\n\nОтвечай кратко."
+            log_context_section = f"\n\nКонтекст из лога по запросу '{search_query}':\n{context_text}"
             print(f"✅ НАЙДЕНО {len(matching_messages)} сообщений для контекста")
-    else:
-            print(f"❌ НИЧЕГО НЕ НАЙДЕНО по запросу '{search_query}'")
+
+    # Контекст реплая
+    replied_context_section = ""
+    if replied_text:
+        replied_user_disp = replied_user or "кто-то"
+        base = replied_text.strip()
+        if len(base) > 220:
+            base = base[:217] + "..."
+        replied_context_section = f"\n\nЭто ответ на сообщение {replied_user_disp}: '{base}'."
+
+    # Собираем единый system prompt
+    system_prompt = ERIS_CORE.build_system_prompt(
+        toxicity_level=toxicity_level,
+        recent_insults=recent_insults_str,
+        length_instruction=li,
+        memory_section=memory_section,
+        personality_section=personality_section,
+        serious_section=serious_section,
+        search_section=search_section,
+        log_context_section=log_context_section,
+        replied_context_section=replied_context_section,
+    )
+
+    # Добавляем guardrails (кроме спец. пользователей)
+    if not is_target_user and not is_eris:
+        system_prompt += "\n\nНе обесценивай и не отговаривай: не пиши фразы типа \"Хватит фантазировать\", \"иди в реальный мир\"/\"пошёл в реальный мир\" и подобные. Подыгрывай фантазии собеседника, но отвечай по сути и кратко."
 
     # Проверяем на команды анализа, игр, суда и репутации
     analysis_commands = {
@@ -1770,86 +1726,68 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
     # Добавляем сообщение пользователя в историю
     conversations[chat_id].append({"role": "user", "content": text})
 
+    # Обновляем память о пользователе для более "живого" общения
+    update_user_memory(username, text, current_time)
+    
+    # Добавляем сообщение пользователя в историю
+    conversations[chat_id].append({"role": "user", "content": text})
+
     try:
-        # Собираем контекст чата для лучшего понимания разговора (увеличено для умных ответов)
-        short_context = build_chat_context(chat_id, limit=15)
+        # Собираем полный тред из user_messages_log (ВСЕ участники, а не только адресованные боту)
+        thread_msgs = []
+        if chat_id in user_messages_by_chat:
+            indices = user_messages_by_chat[chat_id]
+            for i in indices[-15:]:
+                if i < len(user_messages_log):
+                    _cid, uname, t, _ts = user_messages_log[i]
+                    thread_msgs.append({
+                        "author": uname,
+                        "text": t[:300] if len(t) > 300 else t,
+                        "is_eris": False,
+                        "reply_to_text": None,
+                    })
+        else:
+            for m in user_messages_log[-15:]:
+                if m[0] == chat_id:
+                    thread_msgs.append({
+                        "author": m[1],
+                        "text": m[2][:300] if len(m[2]) > 300 else m[2],
+                        "is_eris": False,
+                        "reply_to_text": None,
+                    })
         
-        # Обновляем настроение бота на основе контекста для более "живого" общения
-        update_mood_based_on_context(text, conversations[chat_id])
-        # Если это ответ на конкретное сообщение, добавим явный мини-контекст треда
-        thread_hint = ""
-        if replied_text:
-            replied_user_disp = replied_user or "кто-то"
-            # Обрезаем исходное сообщение, чтобы не разбухать токены
+        # Если есть реплай — добавляем контекст в последнее сообщение треда
+        if replied_text and thread_msgs:
             base = replied_text.strip()
             if len(base) > 220:
                 base = base[:217] + "..."
-            thread_hint = f"\n\nЭто ответ на сообщение {replied_user_disp}: '{base}'. Держись именно этой темы при ответе."
+            thread_msgs[-1]["reply_to_text"] = base
         
-        # Анализируем, смеется ли пользователь или соглашается
-        is_laughing = any(word in text.lower() for word in ['ахахах', 'хахах', 'лол', 'кек', 'факт', 'да', 'точно', 'согласен'])
-        context_instruction = ""
+        # Обновляем настроение бота
+        update_mood_based_on_context(text, conversations[chat_id])
         
-        if is_laughing:
-            context_instruction = f"\n\nОСОБЕННОСТЬ: Пользователь {username} смеется или соглашается. Отвечай с матами, но по-другому - можешь подыграть, подколоть или продолжить тему с сарказмом."
+        # Собираем messages для модели через ErisCore
+        messages_for_gpt = ERIS_CORE.build_messages(system_prompt, thread_msgs)
         
-        # Урезаем историю беседы, чтобы уложиться в лимиты токенов (оптимизированная версия)
-        capped_history = conversations[chat_id][-MAX_CONTEXT_MESSAGES:]
-        
-        # Дополнительно оптимизируем историю - обрезаем длинные сообщения (увеличено для лучшего понимания)
-        optimized_history = []
-        for msg in capped_history:
-            if msg.get("role") == "user" and len(msg.get("content", "")) > 300:
-                # Обрезаем очень длинные сообщения пользователей (увеличено с 200 до 300)
-                content = msg["content"][:297] + "..."
-                optimized_history.append({"role": msg["role"], "content": content})
-            else:
-                optimized_history.append(msg)
-        
-        capped_history = optimized_history
-
-        # Создаем сообщения для GPT: системный промпт + контекст + урезанная история чата
-        messages_for_gpt = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"""Контекст последних сообщений чата (ВНИМАТЕЛЬНО прочитай и пойми о чем идет разговор):
-
-{short_context}
-
-ВАЖНО: 
-- К тебе обращается {username}
-- ДЛИНА ВХОДЯЩЕГО СООБЩЕНИЯ: {len(text)} символов - УЧИТЫВАЙ ЭТО! Короткое сообщение → очень короткий ответ
-- ВНИМАТЕЛЬНО прочитай контекст выше - пойми тему разговора
-- Если обсуждается какая-то тема - ПРОДОЛЖАЙ её, развивай, задавай вопросы, но КОРОТКО
-- Если задан вопрос - отвечай УМНО и ПО ДЕЛУ, но токсично и КОРОТКО
-- Поддерживай разговор, будь вовлеченным, но с матами и унижениями, и КОРОТКО
-- Отвечай именно ему, учитывая контекст диалога, но БУДЬ ЛАКОНИЧНЫМ{context_instruction}{thread_hint}"""}
-        ] + capped_history
-        
+        # Вызываем модель с фолбэк-цепочкой
         try:
+            answer, used_model = ERIS_CORE.call(messages_for_gpt, max_tokens=max_tokens)
+            print(f"   ✅ МОДЕЛЬ: {used_model}")
+        except RuntimeError as e:
+            # Если все модели упали — последний фолбэк на gpt-4o-mini напрямую
+            logging.warning(f"Все free-модели недоступны, фолбэк на gpt-4o-mini: {e}")
             response = client.chat.completions.create(
                 model="openai/gpt-4o-mini",
                 messages=messages_for_gpt,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
             )
             answer = response.choices[0].message.content
-        except Exception as e:
-            # Фолбэк при нехватке кредитов/токенов: пробуем с меньшим лимитом
-            err_text = str(e)
-            if ("This request requires more credits" in err_text or 
-                "max_tokens" in err_text or 
-                "Prompt tokens limit exceeded" in err_text):
-                # Адаптивный fallback в зависимости от типа ответа
-                fallback_tokens = min(max_tokens // 2, 200)  # Половина от запрошенного, но не больше 200
-                logging.warning(f"Недостаточно кредитов/слишком большой max_tokens. Пробуем с {fallback_tokens}.")
-                response = client.chat.completions.create(
-                    model="openai/gpt-4o-mini",
-                    messages=messages_for_gpt,
-                    max_tokens=fallback_tokens
-                )
-                answer = response.choices[0].message.content
-            else:
-                raise
+            print("   ✅ ФОЛБЭК: gpt-4o-mini")
+        
         answer = sanitize_output(answer)
+        
+        # Извлекаем и запоминаем использованные оскорбления для анти-повтора
+        ERIS_CORE.extract_insults(answer)
         
         # Убираем автоматические добавления (если есть)
         auto_prefixes_to_remove = ["Еб*ный, ", "Ебан*й, ", "Ебаный, "]
@@ -1864,14 +1802,15 @@ async def handle_gpt_request(chat_id: int, username: str, text: str, current_tim
         # Сохраняем ответ в кэш
         cache_response(cache_key, answer)
         
-        print(f"   ГРУБЫЙ ОТВЕТ ОТ GPT: {answer[:50]}...")
+        print(f"   ОТВЕТ: {answer[:80]}...")
         print(f"📚 ИСТОРИЯ РАЗГОВОРА: {len(conversations[chat_id])} сообщений")
+        print(f"   🔄 АНТИ-ПОВТОР: {ERIS_CORE.recent_insults}")
         
         return answer
         
     except Exception as e:
         answer = f"Произошла ошибка: {e}"
-        # Добавляем ошибку в историю
+        logging.error(f"Ошибка GPT: {e}")
         conversations[chat_id].append({"role": "assistant", "content": answer})
         return answer
 
