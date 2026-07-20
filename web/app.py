@@ -1,6 +1,8 @@
 import json
 import time
 import logging
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,7 +11,26 @@ from fastapi.templating import Jinja2Templates
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Telegram Bot Admin Panel")
+KEEP_ALIVE_INTERVAL = 300  # 5 минут
+
+async def keep_alive_loop():
+    while True:
+        await asyncio.sleep(KEEP_ALIVE_INTERVAL)
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10) as c:
+                r = await c.get("http://localhost:8080/health")
+                logger.info(f"Keep-alive ping: {r.status_code}")
+        except Exception as e:
+            logger.warning(f"Keep-alive ping failed: {e}")
+
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    task = asyncio.create_task(keep_alive_loop())
+    yield
+    task.cancel()
+
+app = FastAPI(title="Telegram Bot Admin Panel", lifespan=app_lifespan)
 
 # Подключаем статику и шаблоны
 static_dir = Path(__file__).parent / "static"
